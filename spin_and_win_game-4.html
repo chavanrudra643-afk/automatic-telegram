@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Spin & Win — Lucky Wheel</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#172033;background:#f4f1ff}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;padding:18px;background:linear-gradient(135deg,#f3edff,#eaf7ff)}
+main{width:min(100%,520px);padding:clamp(18px,5vw,30px);border-radius:28px;background:#fff;box-shadow:0 18px 60px #40317b1c;text-align:center}
+.eyebrow{font-size:12px;font-weight:850;letter-spacing:3px;color:#7651d9}
+h1{font-size:clamp(30px,7vw,42px);margin:7px 0;color:#20213a}
+.sub{color:#727a91;margin:0 0 22px;font-size:14px}
+.wheel-wrap{position:relative;width:min(82vw,350px);aspect-ratio:1;margin:0 auto 22px}
+canvas{width:100%;height:100%;display:block;filter:drop-shadow(0 8px 9px #20213a22)}
+.pointer{position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:17px solid transparent;border-right:17px solid transparent;border-top:31px solid #22213b;z-index:2}
+.result{background:#f8f6ff;border:1px solid #e8e1ff;border-radius:18px;padding:15px;min-height:88px;margin-bottom:16px}
+.label{font-size:11px;font-weight:800;letter-spacing:2px;color:#8790a5}
+#result{font-size:22px;font-weight:900;color:#6439d3;margin-top:5px;overflow-wrap:anywhere}
+#detail{font-size:12px;color:#7c8499;margin-top:4px}
+.buttons{display:flex;gap:10px}
+button{flex:1;border:0;border-radius:15px;padding:15px 12px;font-size:16px;font-weight:850;cursor:pointer;touch-action:manipulation;transition:transform .15s}
+button:active{transform:scale(.98)}
+.primary{background:linear-gradient(135deg,#6c42ed,#a044ff);color:white;box-shadow:0 5px 14px #7846df35}
+.secondary{background:#fff;color:#5636ba;border:1px solid #ddd4ff}
+[hidden]{display:none!important}
+.footer{display:flex;justify-content:space-between;margin-top:15px;font-size:12px;color:#707a91}
+.note{font-size:11px;color:#9399aa;margin-top:12px}
+@media(max-width:360px){.buttons{flex-direction:column}button{width:100%}}
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">LUCKY SPIN</div>
+  <h1>Spin &amp; Win! 🎁</h1>
+  <p class="sub">Give the wheel a spin and see what you get.</p>
+  <div class="wheel-wrap"><div class="pointer"></div><canvas id="wheel" width="700" height="700" aria-label="Prize wheel"></canvas></div>
+  <section class="result" aria-live="polite">
+    <div class="label">YOUR RESULT</div>
+    <div id="result">Ready to spin? ✨</div>
+    <div id="detail">Tap Spin to get started!</div>
+  </section>
+  <div class="buttons">
+    <button id="spin" class="primary">🎡 Spin</button>
+    <button id="again" class="secondary" hidden>↻ Spin Again</button>
+  </div>
+  <div class="footer"><span>🎯 Every spin is random</span><span id="count">Spins: 0</span></div>
+  <div class="note">For fun only · Rewards are not real prizes</div>
+</main>
+<script>
+(() => {
+ const canvas=document.querySelector('#wheel'),ctx=canvas.getContext('2d');
+ const spinBtn=document.querySelector('#spin'),againBtn=document.querySelector('#again');
+ const result=document.querySelector('#result'),detail=document.querySelector('#detail'),count=document.querySelector('#count');
+ const prizes=[
+  {name:'Mobile',emoji:'📱',color:'#7651ed'},
+  {name:'Headphones',emoji:'🎧',color:'#ef527d'},
+  {name:'Gift Voucher',emoji:'🎁',color:'#ff9d42'},
+  {name:'Smart Watch',emoji:'⌚',color:'#20b8a5'},
+  {name:'Mystery Gift',emoji:'🎉',color:'#3988f5'},
+  {name:'Better Luck Next Time',emoji:'🍀',color:'#d5ad22'}
+ ];
+ const TAU=Math.PI*2,slice=TAU/prizes.length;
+ let angle=0,state='idle',raf=0,from=0,target=0,start=0,duration=0,spins=0,chosen=0;
+ function draw(){
+  const c=350,r=330;ctx.clearRect(0,0,700,700);ctx.save();ctx.translate(c,c);
+  ctx.beginPath();ctx.arc(0,0,r+8,0,TAU);ctx.fillStyle='#fff';ctx.fill();
+  for(let i=0;i<prizes.length;i++){
+   const a=angle+i*slice-Math.PI/2;
+   ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,r,a,a+slice);ctx.closePath();
+   ctx.fillStyle=prizes[i].color;ctx.fill();ctx.lineWidth=5;ctx.strokeStyle='#fff';ctx.stroke();
+   ctx.save();ctx.rotate(a+slice/2);ctx.textAlign='center';ctx.textBaseline='middle';
+   ctx.font='42px "Apple Color Emoji","Segoe UI Emoji",sans-serif';ctx.fillStyle='#fff';
+   ctx.fillText(prizes[i].emoji,r*.68,0);
+   const lines=prizes[i].name==='Better Luck Next Time'?['Better Luck','Next Time']:prizes[i].name==='Gift Voucher'?['Gift','Voucher']:prizes[i].name==='Smart Watch'?['Smart','Watch']:[prizes[i].name];
+   ctx.font='bold '+(i===5?'20':'24')+'px system-ui,sans-serif';
+   lines.forEach((line,j)=>ctx.fillText(line,r*.39+(j-(lines.length-1)/2)*27,0));
+   ctx.restore();
+  }
+  ctx.beginPath();ctx.arc(0,0,65,0,TAU);ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=8;ctx.strokeStyle='#eee7ff';ctx.stroke();
+  ctx.fillStyle='#6241cf';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 23px system-ui';ctx.fillText('LUCKY',0,-12);ctx.fillText('SPIN',0,15);
+  ctx.restore();
+ }
+ function ease(t){return 1-Math.pow(1-t,4)}
+ function frame(now){
+  if(state!=='spinning'&&state!=='stopping')return;
+  const p=Math.min(1,(now-start)/duration);angle=from+(target-from)*ease(p);draw();
+  if(p<1){raf=requestAnimationFrame(frame);return}
+  state='idle';angle=target;draw();showResult(chosen);
+ }
+ function showResult(i){
+  const p=prizes[i];result.textContent=p.emoji+' '+p.name;
+  detail.textContent=p.name==='Better Luck Next Time'?'Good try! Give it another spin.':'Your wheel landed on this reward!';
+  spinBtn.hidden=true;spinBtn.disabled=false;againBtn.hidden=false;count.textContent='Spins: '+spins;
+ }
+ function startSpin(){
+  if(state!=='idle')return;
+  state='spinning';spins++;chosen=Math.floor(Math.random()*prizes.length);
+  result.textContent='🎡 The wheel is spinning…';detail.textContent='Press Stop whenever you like!';
+  spinBtn.textContent='⏹ Stop';againBtn.hidden=true;
+  from=angle;target=angle+TAU*(3+Math.floor(Math.random()*2));
+  const center=chosen*slice+slice/2;
+  target+=(((-Math.PI/2-center-target)%TAU)+TAU)%TAU;
+  start=performance.now();duration=12000;raf=requestAnimationFrame(frame);
+ }
+ function stopSpin(){
+  if(state!=='spinning')return;
+  cancelAnimationFrame(raf);state='stopping';from=angle;
+  const center=chosen*slice+slice/2;
+  const delta=(((-Math.PI/2-center-angle)%TAU)+TAU)%TAU;
+  target=angle+TAU*(2+Math.floor(Math.random()*3))+delta;
+  start=performance.now();duration=2200;spinBtn.disabled=true;spinBtn.textContent='✨ Stopping…';
+  raf=requestAnimationFrame(frame);
+ }
+ spinBtn.addEventListener('click',()=>{if(state==='idle')startSpin();else if(state==='spinning')stopSpin()});
+ againBtn.addEventListener('click',()=>{if(state!=='idle')return;result.textContent='Ready for another spin? ✨';detail.textContent='Tap Spin to get started!';againBtn.hidden=true;spinBtn.hidden=false;spinBtn.disabled=false;spinBtn.textContent='🎡 Spin';startSpin()});
+ draw();
+})();
+</script>
+</body>
+</html>
